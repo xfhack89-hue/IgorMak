@@ -137,7 +137,7 @@
     </div>
 
     <div class="card" style="margin-bottom: 30px;">
-        <div class="card-header">📸 ФОТКИ (автоподгрузка из папки)</div>
+        <div class="card-header">📸 ФОТКИ</div>
         <div class="card-content">
             <div class="photo-gallery" id="gallery"><div class="loader">Загрузка фото...</div></div>
         </div>
@@ -152,35 +152,46 @@
     (async function() {
         const gallery = document.getElementById('gallery');
         
-        // Пытаемся определить владельца и репозиторий из URL GitHub Pages
-        // URL вида: https://username.github.io/repo/ или https://username.github.io/repo/index.html
-        let owner = null, repo = null;
-        const pathParts = window.location.pathname.split('/').filter(p => p);
-        if (window.location.hostname.includes('github.io') && pathParts.length >= 1) {
-            owner = window.location.hostname.split('.')[0];
-            repo = pathParts[0];
-        } else {
-            // fallback: если не GitHub Pages, пробуем local или просим указать
-            gallery.innerHTML = '<div class="loader" style="color:#c41e3a;">Ошибка: сайт должен быть на GitHub Pages. Либо укажите вручную owner и repo в коде.</div>';
+        // ====== ВАЖНО: УКАЖИТЕ ВАШИ ДАННЫЕ ЗДЕСЬ ======
+        const GITHUB_USERNAME = "xfhack89-hue";        // Замените на ваш username (например "IgorHuesos")
+        const REPO_NAME = "IgorMak";        // Замените на имя вашего репозитория (например "dox-site")
+        // ============================================
+        
+        // Проверяем, заполнены ли данные
+        if (GITHUB_USERNAME === "ВАШ_ЛОГИН" || REPO_NAME === "ВАШ_РЕПОЗИТОРИЙ") {
+            gallery.innerHTML = '<div class="loader" style="color:#c41e3a;">⚠️ Ошибка: не указаны данные репозитория в скрипте. Откройте index.html и введите ваш GitHub username и имя репозитория в переменные GITHUB_USERNAME и REPO_NAME.</div>';
             return;
         }
         
-        // Определяем путь к папке, где лежит index.html (без имени файла)
+        // Определяем папку, где лежит index.html (относительно корня репозитория)
         let folderPath = '';
-        if (pathParts.length > 1) {
-            folderPath = pathParts.slice(1).join('/') + '/';
-        } else {
+        const pathParts = window.location.pathname.split('/').filter(p => p && p !== 'index.html');
+        
+        // Если сайт не в корне репозитория (например: username.github.io/repo/folder/)
+        if (pathParts.length > 0 && !window.location.hostname.includes('github.io')) {
+            // Для кастомного домена pathname обычно начинается с /, но мы не знаем структуру
+            // Простой вариант: предполагаем, что index.html лежит в корне репозитория
             folderPath = '';
+        } else if (window.location.hostname.includes('github.io') && pathParts.length >= 1) {
+            // На стандартном GitHub Pages (без кастомного домена) - извлекаем путь
+            const firstPart = pathParts[0];
+            if (firstPart === REPO_NAME) {
+                folderPath = pathParts.slice(1).join('/');
+                folderPath = folderPath ? folderPath + '/' : '';
+            }
         }
         
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folderPath}`;
+        const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${folderPath}`;
         
         try {
             const response = await fetch(apiUrl, {
                 headers: { 'Accept': 'application/vnd.github.v3+json' }
             });
-            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            if (!response.ok) throw new Error(`API error: ${response.status} - ${response.statusText}`);
             const files = await response.json();
+            
+            // Проверяем, что files - массив
+            if (!Array.isArray(files)) throw new Error('Ответ API не содержит список файлов');
             
             const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
             const imageFiles = files.filter(file => {
@@ -190,7 +201,7 @@
             });
             
             if (imageFiles.length === 0) {
-                gallery.innerHTML = '<div class="loader" style="color:#aaa;">Фото не найдены. Загрузите изображения в ту же папку, что и index.html</div>';
+                gallery.innerHTML = '<div class="loader" style="color:#aaa;">📷 Фото не найдены. Загрузите изображения в ту же папку, что и index.html</div>';
                 return;
             }
             
@@ -205,8 +216,8 @@
                 gallery.appendChild(div);
             }
         } catch (err) {
-            console.error(err);
-            gallery.innerHTML = `<div class="loader" style="color:#c41e3a;">Ошибка загрузки списка фото: ${err.message}</div>`;
+            console.error('Ошибка:', err);
+            gallery.innerHTML = `<div class="loader" style="color:#c41e3a;">❌ Ошибка загрузки фото: ${err.message}<br><br>Проверьте:<br>1. Правильно ли указаны GITHUB_USERNAME и REPO_NAME в скрипте<br>2. Не приватный ли репозиторий? (должен быть публичным)<br>3. Есть ли фото в той же папке, что и index.html</div>`;
         }
     })();
 </script>
